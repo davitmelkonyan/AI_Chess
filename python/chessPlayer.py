@@ -279,6 +279,277 @@ class chessBoard:
         for i in self.raycast(loc1,loc2,maxx):
             if(self.get_Piece(i)):
                 return i
+    ###
+    def finalDeptSearch(self, blackTurn):
+        move_list = self.generateLegalMoves(True);
+        if not len(move_list):
+            return
+        else:
+            bestMove = move_list[0]
+            bestEvaluation = self.simulateMove(bestMove[0],bestMove[1]);
+        
+        for move_tuple in move_list:
+            currentEvaluation = self.simulateMove(move_tuple[0], move_tuple[1]);
+            if blackTurn:
+                if currentEvaluation < bestEvaluation:
+                    bestMove = move_tuple
+                    bestEvaluation = currentEvaluation
+                elif currentEvaluation == bestEvaluation:
+                    bestMove = random.choice((bestMove,move_tuple));
+            else:
+                if currentEvaluation > bestEvaluation:
+                    bestMove = move_tuple
+                    bestEvaluation = currentEvaluation
+                elif currentEvaluation == bestEvaluation:
+                    bestMove = random.choice((bestMove,move_tuple));
+
+        return bestEvaluation,bestMove
+            
+    def miniMax(self, currentDepth, maxDepth, blackTurn):
+        if currentDepth == maxDepth:
+            return self.finalDeptSearch(blackTurn);
+        currentMoveOptions = self.generateLegalMoves(blackTurn);
+        if blackTurn:
+            bestTuple = (9999.9, None)
+            for move in currentMoveOptions:
+                piece = self.safeMove(*move)
+                minimaxTuple = self.miniMax(currentDepth+1, maxDepth, not blackTurn);
+                if minimaxTuple and bestTuple and minimaxTuple[0]<bestTuple[0]:
+                    bestTuple = minimaxTuple;
+                self.safeMove(move[1], move[0]);
+                if piece:
+                    self.setPieceAt(move[1],piece);
+                    piece.pos = move[1];
+            return bestTuple
+        else:
+            bestTuple = (-9999.9, None)
+            for move in currentMoveOptions:
+                piece = self.safeMove(*move)
+                minimaxTuple = self.miniMax(currentDepth+1, maxDepth, not blackTurn);
+                if minimaxTuple and bestTuple and minimaxTuple[0]<bestTuple[0]:
+                    bestTuple = minimaxTuple;
+                self.safeMove(move[1], move[0]);
+                if piece:
+                    self.setPieceAt(move[1],piece);
+                    piece.pos = move[1];
+
+            return bestTuple;
+                
+    
+    def computerMove(self):
+        move_list = self.generateLegalMoves(True);
+        if not len(move_list):
+            return
+        else:
+            bestMove = move_list[0]
+            bestEvaluation = 9999.9
+        
+        for move_tuple in move_list:
+            piece = self.safeMove(move[0],move[1]);
+            bestTuple = self.miniMax(1,2,True);
+            if bestTuple[0]<bestEvaluation:
+                bestMove = move;
+                bestEvaluation = bestTuple[0]
+            self.safeMove(move[1],move[0])
+            if piece:
+                self.setPieceAt(move[1],piece)
+            piece.pos = move[1]
+
+        self.move(*bestMove);
+        self.currentTeam = (self.currentTeam + 1) % 2;
+
+    def generateLegalMoves(self,blackTurn):
+        move_list = []
+        for piece in self.board:
+            if piece:
+                if blackTurn:
+                    # BLACK TURN
+                    if str(piece) in {'p', 'n', 'b', 'r', 'q', 'k'}:
+                        for destination in piece.validMoves:
+                            if destination[0]>=0 and destination[1]>=0:
+                                move_list.append((piece.pos, destination));
+                else:
+                    # WHITE TURN
+                    if str(piece) in {'P', 'N', 'B', 'R', 'Q', 'K'}:
+                        for destination in piece.validMoves:
+                            if destination[0]>=0 and destination[1]>=0:
+                                move_list.append((piece.pos, destination));
+
+        return move_list;
+
+    def simulateMove(self, pos1, pos2):
+        piece = self.safeMove(pos1,pos2);
+        evaluation = self.evaluatePosition();
+        self.safeMove(pos2, pos1);
+        if piece:
+            self.setPieceAt(pos2, piece);
+            piece.pos = pos2;
+        return evaluation;
+    
+    def safeMove(self, pos1, pos2):
+        b1 = self.board[pos2index(pos1)];
+        if b1:
+            if self.board[pos2index(pos2)]:
+                capturedPiece = self.board[pos2index(pos2)];
+                b1.safeMoveTo(pos2);
+                return capturedPiece;
+            else:
+                b1.safeMoveTo(pos2);
+                return None;
+                            
+    def evaluatePosition(self):
+        if self.winner != -1:
+            if self.winner < 2:
+                if self.winner == 1:
+                    return -9999.9;
+                else:
+                    return 9999.9;
+            else:
+                return 0.0;
+    
+        valueMapping = {'P':10, 'N':30, 'B':30, 'R':50, 'Q':90, 'K':900,'p':-10, 'n':-30, 'b':-30, 'r':-50, 'q':-90,'k':-900};
+        evaluation = 0.0;
+        for piece in self.board:
+            if piece:
+                evaluation += valueMapping[str(piece)];
+        return evaluation
+
+    def pickMove(self):
+        move_list = self.generateLegalMoves();
+        return random.choice(move_list) if len(move_list) > 0 else None;
+
+#------------------------------------------------------------------
+    def __str__(self):
+        o = "   ";
+        for i in range(8):
+            o += " " + str(chr(i+alphaValueOffset));
+        o+="\n";
+        r=0;
+        c=0;
+        for i in range(8):
+            o+= " "*3; 
+            for j in range(8):
+                r = math.ceil(i/8);
+                c = math.ceil(j/8);
+                o += boardfix[r][c] + "─";
+            o+=boardfix[r][2] + "\n";
+            o+=str(i+1) + " "*(2-(len(str(i+1))-1));
+            for j in range(8):
+                o+="|"+ (str(self.board[j + i*8] or " "));
+            o+="|\n";
+        o+= "   ";
+        for j in range(8):
+            c = math.ceil(j/8);
+            o += boardfix[2][c] + "─";
+        o+=boardfix[2][2] + "\n";
+        return o;
+        
+
+def getMove():
+    while(True):
+        try:
+            in1 = input("Next move: ").split(" ");
+            p1 = str2pos(in1[0]);
+            p2 = str2pos(in1[1]);
+            return p1,p2;
+        except Exception:
+            print("Bad input");
+            
+def mainC():
+    while(True):
+        print(rGame);
+        print("Current player: {}".format("black" if rGame.currentTeam else "white"));
+        while(not rGame.move(*getMove())):
+            pass;
+
+
+def main():
+    chessGame = chessboard();
+    chessGame.regularBoard();
+    chessGame.updateAll();
+    chessGame.updateAll();
+    chessGame.afterUpdate();
+    screenSize = (360,360);
+    display = pygame.display.set_mode(screenSize);
+    pygame.display.set_caption("Chess");
+    runGame = True;
+    time = 0;
+    clock = pygame.time.Clock();
+    pieceInHand = None;
+    mPos = (0,0);
+    mOffset = (0,0);
+    print(chessGame);
+    while(runGame):
+        blackMove = False
+        mPos = pygame.mouse.get_pos();
+        for event in pygame.event.get():
+            if(event.type == pygame.QUIT):
+                runGame = False;
+            
+            if(chessGame.winner == -1):
+                if chessGame.currentTeam:
+                    pass
+                else:
+                    if(event.type == 5):
+                        #Mouse click
+                        i1 = chessGame.getPieceAt((int(mPos[0]/45),int(mPos[1]/45)));
+                        if(i1 and i1.team == chessGame.currentTeam):
+                            mOffset = (int(mPos[0]%45),int(mPos[1]%45));
+                            if(pieceInHand):
+                                pieceInHand.canRender = True;
+                            i1.canRender = False;
+                            pieceInHand = i1;
+                            pieceInHand.update();
+                        
+
+            if(event.type == 6):
+                #Drag release
+                if(pieceInHand and not chessGame.currentTeam):
+                    if(chessGame.move(pieceInHand.pos,(int(mPos[0]/45),int(mPos[1]/45)))):
+                        print(chessGame);
+                        print("Current player: {}".format("black" if chessGame.currentTeam else "white"));
+                        print('--- MOVING BLACK ---')
+                        chessGame.computerMove();
+                        chessGame.currentTeam = (chessGame.currentTeam + 1) %2;
+
+                        print();
+                        print("Current player: {}".format("black" if chessGame.currentTeam else "white"));
+
+                    pieceInHand.canRender = True;
+                    pieceInHand = None;
+
+                    
+        display.fill((0,0,0));
+
+
+        # Rendering
+        chessGame.renderBG(display);
+        if(pieceInHand):
+            dPm = pieceInHand;
+        else:
+            dPm = chessGame.getPieceAt((int(mPos[0]/45),int(mPos[1]/45)));
+        if(dPm and dPm.team == chessGame.currentTeam):
+            for i in dPm.validMoves:
+                cDiff = -100*((i[0]+1+i[1])%2);
+                c = (0,255+cDiff,0);
+                pAt=chessGame.getPieceAt(i);
+                if(pAt):
+                    if(pAt.team != dPm.team):
+                        c = (255+cDiff,0,0);
+                    else:
+                        c = (0,0,255+cDiff);    
+                pygame.draw.rect(display,c,(i[0]*45,i[1]*45,45,45));
+
+        chessGame.renderPieces(display);
+        if(pieceInHand):
+            p = pieceInHand;
+            s = pieceInHand.spritesheet;
+            display.blit(s[0],(mPos[0]-mOffset[0],mPos[1]-mOffset[1]),((p.spriteIndex[p.team]%6)*s[1],math.floor(p.spriteIndex[p.team]/6)*s[1],s[1],s[1]));
+        clock.tick(60);
+        pygame.display.update();
+        time+=0.1;
+    
+main();
 
 
 
