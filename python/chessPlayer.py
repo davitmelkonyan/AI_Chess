@@ -240,6 +240,17 @@ class chessBoard:
         self.winner = -1
         self.lastPiece = None
         self.currentTeam = 0  
+
+    def set_Board(self, board):
+        for loc,piece in enumerate(board):
+            board[loc] = piece
+
+    def get_Piece(self,loc):
+        return self.board[pos2index(loc)]
+        
+
+    def set_Piece(self, loc, piece):
+        self.board[pos2index(loc)] = piece
         
     def update_All(self):
         for i in self.board:
@@ -248,6 +259,11 @@ class chessBoard:
     def after_Update(self):
         for i in self.board:
             if(i): i.afterUpdate()
+
+    def swap(self,loc1,loc2):
+        temp = self.board[pos2index(loc1)]
+        self.board[pos2index(loc1)] = self.board[pos2index(loc2)]
+        self.board[pos2index(loc2)] = self.board[pos2index(loc1)]
                 
     def init_Board(self):
         self.board[0:7] = [Rook(self,(0,0),0),Knight(self,(1,0),0),Bishop(self,(2,0),0),Queen(self,(3,0),0),King(self,(4,0),0),Bishop(self,(5,0),0),Knight(self,(6,0),0),Rook(self,(7,0),0)]
@@ -255,13 +271,15 @@ class chessBoard:
         self.board[pos2index((0,7))-1 : pos2index((7,7))-1] = [Rook(self,(0,7),1),Knight(self,(1,7),1),Bishop(self,(2,7),1),Queen(self,(3,7),1),King(self,(4,7),1),Bishop(self,(5,7),1),Knight(self,(6,7),1),Rook(self,(7,7),1)]
         self.board[pos2index((0,6)) : pos2index((7,6))] = [Pawn(self,(i,6),1) for i in range(8)]
         
+    def first_Encounter(self, loc1, loc2, maxx = 1):
+        diffX = -loc1[0]+loc2[0]
+        diffY = -loc1[1]+loc2[1]
+        cPos = loc1
+        first = True
+        for i in self.raycast(loc1,loc2,maxx):
+            if(self.get_Piece(i)):
+                return i
 
-
-    def getPiecesAt(self,pos):
-        return self.board[pos2index(pos)]
-    
-    def setPieceAt(self,pos,piece):
-        self.board[pos2index(pos)] = piece
 
 
 
